@@ -1,0 +1,36 @@
+{
+  "name": "lince-back",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsnd --respawn --clear src/app.ts",
+    "build": "rimraf ./dist && tsc",
+    "start": "npm run build && node dist/app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/dotenv": "^6.1.1",
+    "@types/express": "^5.0.1",
+    "@types/joi": "^17.2.2",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.15.3",
+    "@types/nodemailer": "^6.4.17",
+    "rimraf": "^6.0.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dot-env": "^0.0.1",
+    "dotenv": "^16.5.0",
+    "env-var": "^7.5.0",
+    "express": "^5.1.0",
+    "multer": "^1.4.5-lts.2",
+    "nodemailer": "^6.10.1",
+    "openai": "^4.97.0"
+  }
+}
