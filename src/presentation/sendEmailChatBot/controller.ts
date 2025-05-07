@@ -1,40 +1,84 @@
 import { Request, Response, NextFunction } from 'express';
 import { EmailService, SendMailOptions } from '../services/email.service';
 import { ContactFromChatBotDto } from '../../domain/dtos/contactFromChatbot';
+import { envs } from '../../config/envs';
 
 export class SendEmailChatBotController {
-    constructor(private readonly emailService: EmailService) { }
+  constructor(private readonly emailService: EmailService) { }
 
-    sendEmailChatBot = async (req: Request, res: Response, next: NextFunction) => {
-        try {
+  sendEmailChatBot = async (req: Request, res: Response, next: NextFunction) => {
+    try {
 
-            const [error, dto] = ContactFromChatBotDto.create(req.body);
-            if (error) return res.status(400).json({ error });
+      const [error, dto] = ContactFromChatBotDto.create(req.body);
+      if (error) return res.status(400).json({ error });
 
-            const htmlBody = this.generateEmailTemplate(dto!)
+      const htmlBody = this.generateEmailTemplate(dto!)
+
+      this.setCustomField('tel_cliente', dto?.telefono!);
+      this.setCustomField('tipo', dto?.asunto!);
+      this.sendFlow()
+
+      const sendOptions: SendMailOptions = {
+        to: 'damian@lincesa.com.ar',
+        subject: 'Consulta desde el ChatBot',
+        htmlBody,
+      };
+
+      await this.emailService.sendEmail(sendOptions);
+      return res.json({ success: true });
+    } catch (err) {
+      return next(err);
+    }
+  };
+
+  sendFlow = async () => {
+    const resp = await fetch(`https://api.manychat.com/fb/sending/sendFlow`, {
+      method: 'POST',
+      headers: {
+        'Authorization': envs.TOKEN_USER_MANYCHAT,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        subscriber_id: envs.ID_USER_MANYCHAT,
+        flow_ns: 'content20250506120150_094246'
+      })
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(`Error al enviar el flow: ${JSON.stringify(err)}`);
+    }
+  };
 
 
-            const sendOptions: SendMailOptions = {
-                to: 'damian@lincesa.com.ar',
-                subject: 'Consulta desde el ChatBot',
-                htmlBody,
-            };
+  setCustomField = async (fieldName: string, fieldValue: string) => {
 
-            await this.emailService.sendEmail(sendOptions);
-            return res.json({ success: true });
-        } catch (err) {
-            return next(err);
-        }
+    if (!fieldName || !fieldValue) throw new Error('setCustomField: fieldName and fieldValue are required');
+
+    const resp = await fetch(`https://api.manychat.com/fb/subscriber/setCustomFieldByName`, {
+      method: 'POST',
+      headers: {
+        'Authorization': envs.TOKEN_USER_MANYCHAT,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        subscriber_id: envs.ID_USER_MANYCHAT,
+        field_name: fieldName,
+        field_value: fieldValue
+      })
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(`Error setCustomField(${fieldName}): ${JSON.stringify(err)}`);
+    }
+  };
+
+  generateEmailTemplate = (dto: ContactFromChatBotDto) => {
+    // Función auxiliar para crear campos condicionales
+    const createFieldIfExists = (label: string, value: string | undefined) => {
+      return value ? `<div class="field"><span class="label">${label}:</span><span class="value">${value}</span></div>` : '';
     };
 
-
-    generateEmailTemplate = (dto: ContactFromChatBotDto) => {
-        // Función auxiliar para crear campos condicionales
-        const createFieldIfExists = (label: string, value: string | undefined) => {
-            return value ? `<div class="field"><span class="label">${label}:</span><span class="value">${value}</span></div>` : '';
-        };
-
-        const htmlBody = `
+    const htmlBody = `
           <!DOCTYPE html>
           <html lang="es">
           <head>
@@ -71,7 +115,7 @@ export class SendEmailChatBotController {
           </html>
         `;
 
-        return htmlBody;
-    };
+    return htmlBody;
+  };
 
 }

@@ -20,6 +20,8 @@ export const envs = {
   // IA_API_URL: get('IA_API_URL').required().asString(),
 
   IA_API_KEY: get('IA_API_KEY').required().asString(),
-
   IA_CONTEXT: get('IA_CONTEXT').required().asString(),
+
+  ID_USER_MANYCHAT: get('ID_USER_MANYCHAT').required().asInt(),
+  TOKEN_USER_MANYCHAT: get('TOKEN_USER_MANYCHAT').required().asString(),
 }
