@@ -3,21 +3,30 @@ import { EmailService, SendMailOptions } from '../services/email.service';
 import { ContactFromChatBotDto } from '../../domain/dtos/contactFromChatbot';
 import { envs } from '../../config/envs';
 
+interface ManyChartResponse {
+  success?: boolean;
+  status?: string;
+  error_message?: string;
+  error_code?: string;
+  // Otros campos que puedan ser devueltos por la API de ManyChat
+}
+
 export class SendEmailChatBotController {
   constructor(private readonly emailService: EmailService) { }
 
   sendEmailChatBot = async (req: Request, res: Response, next: NextFunction) => {
     try {
-
+      // Validar el DTO
       const [error, dto] = ContactFromChatBotDto.create(req.body);
       if (error) return res.status(400).json({ error });
 
-      const htmlBody = this.generateEmailTemplate(dto!)
+      // Generar el cuerpo del correo electrónico
+      const htmlBody = this.generateEmailTemplate(dto!);
 
-      this.setCustomField('tel_cliente', dto?.telefono!);
-      this.setCustomField('tipo', dto?.asunto!);
-      this.sendFlow()
+      // Interactuar con ManyChat - registramos los resultados
+      // const manyChatResults = await this.processManyChatOperations(dto!);
 
+      // Enviar el correo electrónico
       const sendOptions: SendMailOptions = {
         to: 'damian@lincesa.com.ar',
         subject: 'Consulta desde el ChatBot',
@@ -25,54 +34,142 @@ export class SendEmailChatBotController {
       };
 
       await this.emailService.sendEmail(sendOptions);
-      return res.json({ success: true });
-    } catch (err) {
+
+      // Responder con los resultados de todas las operaciones
+      return res.json({ 
+        success: true,
+        email: { sent: true },
+        // manyChat: manyChatResults
+      });
+    } catch (err: unknown) {
+      console.error('Error en sendEmailChatBot:', err);
       return next(err);
     }
   };
 
-  sendFlow = async () => {
-    const resp = await fetch(`https://api.manychat.com/fb/sending/sendFlow`, {
-      method: 'POST',
-      headers: {
-        'Authorization': envs.TOKEN_USER_MANYCHAT,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        subscriber_id: envs.ID_USER_MANYCHAT,
-        flow_ns: 'content20250506120150_094246'
-      })
-    });
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(`Error al enviar el flow: ${JSON.stringify(err)}`);
-    }
-  };
+  /**
+   * Procesa todas las operaciones de ManyChat y devuelve los resultados
+   */
+  // private async processManyChatOperations(dto: ContactFromChatBotDto) {
+  //   try {
+  //     // Configuramos los campos personalizados primero
+  //     const customFieldResults: Record<string, { success: boolean; response?: any }> = {};
+      
+  //     if (dto.telefono) {
+  //       customFieldResults['tel_cliente'] = await this.setCustomField('tel_cliente', dto.telefono);
+  //     }
+      
+  //     if (dto.asunto) {
+  //       customFieldResults['tipo'] = await this.setCustomField('tipo', dto.asunto);
+  //     }
 
+  //     // Enviamos el flow después de configurar los campos
+  //     const flowResult = await this.sendFlow();
 
-  setCustomField = async (fieldName: string, fieldValue: string) => {
+  //     return {
+  //       customFields: customFieldResults,
+  //       flowSent: flowResult
+  //     };
+  //   } catch (error: unknown) {
+  //     console.error('Error en operaciones de ManyChat:', error);
+  //     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+  //     throw new Error(`Error en operaciones de ManyChat: ${errorMessage}`);
+  //   }
+  // }
 
-    if (!fieldName || !fieldValue) throw new Error('setCustomField: fieldName and fieldValue are required');
+  /**
+   * Envía un flow a través de la API de ManyChat
+   * @returns Objeto con el resultado de la operación
+   */
+  // private async sendFlow(): Promise<{ success: boolean; response?: any }> {
+  //   try {
+  //     const resp = await fetch(`https://api.manychat.com/fb/sending/sendFlow`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Authorization': envs.TOKEN_USER_MANYCHAT,
+  //         'Content-Type': 'application/json'
+  //       },
+  //       body: JSON.stringify({
+  //         subscriber_id: envs.ID_USER_MANYCHAT,
+  //         flow_ns: 'content20250506120150_094246'
+  //       })
+  //     });
 
-    const resp = await fetch(`https://api.manychat.com/fb/subscriber/setCustomFieldByName`, {
-      method: 'POST',
-      headers: {
-        'Authorization': envs.TOKEN_USER_MANYCHAT,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        subscriber_id: envs.ID_USER_MANYCHAT,
-        field_name: fieldName,
-        field_value: fieldValue
-      })
-    });
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(`Error setCustomField(${fieldName}): ${JSON.stringify(err)}`);
-    }
-  };
+  //     const data: ManyChartResponse = await resp.json();
 
-  generateEmailTemplate = (dto: ContactFromChatBotDto) => {
+  //     // Un código HTTP 200 con cualquier respuesta se considera exitoso
+  //     if (!resp.ok) {
+  //       const errorMessage = data.error_message || `Error HTTP: ${resp.status}`;
+  //       console.error('Error al enviar el flow:', errorMessage);
+  //       return { 
+  //         success: false, 
+  //         response: { 
+  //           statusCode: resp.status,
+  //           ...data
+  //         } 
+  //       };
+  //     }
+
+  //     return { success: true, response: data };
+  //   } catch (error: unknown) {
+  //     console.error('Error en sendFlow:', error);
+  //     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+  //     return { success: false, response: { error: errorMessage } };
+  //   }
+  // }
+
+  // /**
+  //  * Establece un campo personalizado en ManyChat
+  //  * @param fieldName Nombre del campo
+  //  * @param fieldValue Valor del campo
+  //  * @returns Objeto con el resultado de la operación
+  //  */
+  // private async setCustomField(fieldName: string, fieldValue: string): Promise<{ success: boolean; response?: any }> {
+  //   try {
+  //     if (!fieldName || !fieldValue) {
+  //       return { success: false, response: { error: 'fieldName y fieldValue son obligatorios' } };
+  //     }
+
+  //     const resp = await fetch(`https://api.manychat.com/fb/subscriber/setCustomFieldByName`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Authorization': envs.TOKEN_USER_MANYCHAT,
+  //         'Content-Type': 'application/json'
+  //       },
+  //       body: JSON.stringify({
+  //         subscriber_id: envs.ID_USER_MANYCHAT,
+  //         field_name: fieldName,
+  //         field_value: fieldValue
+  //       })
+  //     });
+
+  //     const data: ManyChartResponse = await resp.json();
+
+  //     // Un código HTTP 200 con cualquier respuesta se considera exitoso
+  //     if (!resp.ok) {
+  //       const errorMessage = data.error_message || `Error HTTP: ${resp.status}`;
+  //       console.error(`Error en setCustomField(${fieldName}):`, errorMessage);
+  //       return { 
+  //         success: false, 
+  //         response: { 
+  //           statusCode: resp.status,
+  //           ...data
+  //         } 
+  //       };
+  //     }
+
+  //     return { success: true, response: data };
+  //   } catch (error: unknown) {
+  //     console.error(`Error en setCustomField(${fieldName}):`, error);
+  //     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+  //     return { success: false, response: { error: errorMessage } };
+  //   }
+  // }
+
+  /**
+   * Genera la plantilla HTML para el correo electrónico
+   */
+  private generateEmailTemplate = (dto: ContactFromChatBotDto) => {
     // Función auxiliar para crear campos condicionales
     const createFieldIfExists = (label: string, value: string | undefined) => {
       return value ? `<div class="field"><span class="label">${label}:</span><span class="value">${value}</span></div>` : '';
@@ -117,5 +214,4 @@ export class SendEmailChatBotController {
 
     return htmlBody;
   };
-
 }
